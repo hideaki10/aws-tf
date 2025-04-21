@@ -8,6 +8,6 @@ terraform {
 }
 
 provider "aws" {
-  region = "ap-northeast-1"
-  profile = "terraform-remote-state-demo-20250418-tokyo"
+  region  = "ap-northeast-1"
+  profile = "dev-user-terraform"
 }
