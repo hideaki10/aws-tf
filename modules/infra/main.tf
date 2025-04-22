@@ -75,14 +75,15 @@ resource "aws_lb_listener" "this" {
 }
 
 resource "aws_security_group" "alb" {
-  description = "terraform security group"
+  description = "terraform security group for alb"
   vpc_id      = aws_vpc.this.id
   tags = {
     Name = "terraform-security-group"
   }
 }
 
-resource "aws_vpc_security_group_ingress_rule" "this" {
+# secruity group ingress rule internet -> alb
+resource "aws_vpc_security_group_ingress_rule" "alb" {
   for_each          = var.allowd_ips
   security_group_id = aws_security_group.alb.id
   cidr_ipv4         = each.value
@@ -90,6 +91,72 @@ resource "aws_vpc_security_group_ingress_rule" "this" {
   ip_protocol       = "tcp"
   to_port           = 80
 }
+
+resource "aws_ecs_cluster" "this" {
+  name = "terraform-ecs-cluster"
+}
+
+resource "aws_iam_role" "ecs_execution_role" {
+  name = "ecsExecutionRole"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "ecs_task_execution_role_attachment" {
+  role       = aws_iam_role.ecs_execution_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# app secruity group
+resource "aws_security_group" "app" {
+  description = "terraform security group for app"
+  vpc_id      = aws_vpc.this.id
+  tags = {
+    Name = "terraform-security-group-app"
+  }
+}
+
+# egress rule alb -> app 
+resource "aws_vpc_security_group_egress_rule" "alb_to_app" {
+  security_group_id            = aws_security_group.alb.id
+  referenced_security_group_id = aws_security_group.app.id
+  ip_protocol                  = "-1"
+  tags = {
+    Name = "terraform-security-group-alb-to-app"
+  }
+}
+
+# ingree rule alb -> app
+resource "aws_vpc_security_group_ingress_rule" "alb_to_app" {
+  security_group_id            = aws_security_group.app.id
+  referenced_security_group_id = aws_security_group.alb.id
+  ip_protocol                  = "-1"
+  tags = {
+    Name = "terraform-security-group-app-to-alb"
+  }
+}
+
+# egress rule app -> internet
+resource "aws_vpc_security_group_egress_rule" "app_to_internet" {
+  security_group_id = aws_security_group.app.id
+  cidr_ipv4         = "0.0.0.0/0"
+  ip_protocol       = "-1"
+  tags = {
+    Name = "terraform-security-group-app-to-internet"
+  }
+}
+
+
 
 data "aws_availability_zones" "avaliability" {
   state = "available"
