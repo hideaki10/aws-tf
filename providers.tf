@@ -10,4 +10,10 @@ terraform {
 provider "aws" {
   region  = "ap-northeast-1"
   profile = "dev-user-terraform"
+  default_tags {
+    tags = {
+      App = "terraform-mtc-app-demo"
+      Env = "dev"
+    }
+  }
 }

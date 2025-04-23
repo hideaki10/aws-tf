@@ -48,3 +48,18 @@ variable "cluster_arn" {
   type        = string
   description = "The ARN of the ECS cluster"
 }
+
+variable "vpc_id" {
+  type        = string
+  description = "The ID of the VPC"
+}
+
+variable "alb_listener_arn" {
+  type        = string
+  description = "The ARN of the listener"
+}
+
+variable "path_pattern" {
+  type        = string
+  description = "The path pattern to deploy the app to"
+}

@@ -52,28 +52,21 @@ resource "aws_ecs_task_definition" "this" {
       name      = var.app_path
       image     = "${local.ecr_url}:${var.image_version}"
       essential = true
-      container_definitions = jsonencode([
+      cpu       = 256
+      memory    = 512
+      portMappings = [
         {
-          name      = var.app_path
-          image     = "${local.ecr_url}:${var.image_version}"
-          cpu       = 256
-          memory    = 512
-          essential = true
-          portMappings = [
-            {
-              containerPort = var.port
-              hostPort      = var.port
-            }
-          ]
+          containerPort = var.port
+          hostPort      = var.port
         }
-      ])
+      ]
     }
   ])
 }
 
 resource "aws_ecs_service" "this" {
-  name = "${var.app_name}-service"
-  #cluster         = var.cluster_name
+  name            = "${var.app_name}-service"
+  cluster         = var.cluster_arn
   task_definition = aws_ecs_task_definition.this.family
   desired_count   = 1
   launch_type     = "FARGATE"
@@ -82,9 +75,34 @@ resource "aws_ecs_service" "this" {
     security_groups  = [var.security_group]
     assign_public_ip = var.is_public
   }
-  #load_balancer {}
+  load_balancer {
+    target_group_arn = aws_lb_target_group.this.arn
+    container_name   = var.app_path
+    container_port   = var.port
+  }
 }
 
+
+resource "aws_lb_target_group" "this" {
+  name        = "${var.app_name}-target-group"
+  target_type = "ip"
+  port        = var.port
+  vpc_id      = var.vpc_id
+  protocol    = "HTTP"
+}
+
+resource "aws_lb_listener_rule" "this" {
+  listener_arn = var.alb_listener_arn
+  condition {
+    path_pattern {
+      values = [var.path_pattern]
+    }
+  }
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.this.arn
+  }
+}
 
 
 data "aws_ecr_authorization_token" "this" {}
